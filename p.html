@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SGMS</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  :root {
+    --bg0: #06101c;
+    --bg1: #0c1b30;
+    --glass: rgba(255,255,255,0.08);
+    --line: rgba(255,255,255,0.16);
+    --text: #f8fbff;
+    --muted: #b7c7dc;
+    --blue: #3b82f6;
+    --cyan: #22d3ee;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    font-family: Manrope, system-ui, sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(800px 400px at 10% -10%, rgba(59,130,246,.35), transparent 55%),
+      radial-gradient(700px 360px at 100% 0%, rgba(34,211,238,.18), transparent 50%),
+      linear-gradient(180deg, var(--bg1), var(--bg0));
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 22px 16px 40px; }
+  .top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -0.03em; }
+  .mark {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: grid; place-items: center;
+    background: linear-gradient(160deg, #60a5fa, #2563eb);
+    box-shadow: 0 8px 24px rgba(37,99,235,.35);
+  }
+  .live {
+    font-size: .72rem; letter-spacing: .14em; text-transform: uppercase;
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px;
+    background: rgba(255,255,255,.06);
+  }
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 20px;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 18px 50px rgba(0,0,0,.28);
+    animation: rise .35s ease;
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  h1 { font-size: 2rem; letter-spacing: -0.04em; line-height: 1.05; margin-bottom: 8px; }
+  .sub { color: var(--muted); margin-bottom: 18px; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .modes { grid-template-columns: 1fr; } h1 { font-size: 1.55rem; } }
+  .mode {
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.04));
+    color: var(--text);
+    border-radius: 20px;
+    padding: 22px 16px;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform .16s ease, border-color .16s ease;
+  }
+  .mode:hover { transform: translateY(-3px); border-color: rgba(147,197,253,.55); }
+  .ico {
+    width: 48px; height: 48px; border-radius: 14px; margin-bottom: 12px;
+    display: grid; place-items: center;
+    background: rgba(59,130,246,.2);
+    border: 1px solid rgba(147,197,253,.3);
+  }
+  .mode b { display: block; font-size: 1.2rem; margin-bottom: 4px; }
+  .mode span { color: var(--muted); font-size: .92rem; }
+  .hidden { display: none !important; }
+  video, .feed {
+    width: 100%; max-height: 360px; border-radius: 16px;
+    background: rgba(2,6,18,.55); border: 1px solid var(--line); object-fit: cover;
+  }
+  .code {
+    text-align: center; font-size: 2.5rem; font-weight: 800;
+    letter-spacing: .24em; margin: 12px 0 4px;
+    text-shadow: 0 0 22px rgba(59,130,246,.45);
+  }
+  .pct { font-size: 3.8rem; font-weight: 800; letter-spacing: -0.05em; line-height: 1; }
+  .bar { height: 12px; border-radius: 99px; background: rgba(255,255,255,.1); overflow: hidden; margin: 12px 0; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,#22d3ee,#3b82f6,#f43f5e); transition: width .3s; }
+  .status { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+  .dot.mid { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+  .dot.full { background: #f43f5e; box-shadow: 0 0 10px #f43f5e; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { transform: scale(1.3); opacity: .6; } }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button.btn {
+    border: 0; border-radius: 12px; padding: 11px 14px;
+    font-family: inherit; font-weight: 700; cursor: pointer; color: #fff;
+    background: linear-gradient(180deg, #60a5fa, #2563eb);
+  }
+  button.btn.ghost { background: rgba(255,255,255,.08); border: 1px solid var(--line); }
+  button.btn.warn { background: linear-gradient(180deg, #fbbf24, #d97706); }
+  button.btn.danger { background: linear-gradient(180deg, #fb7185, #e11d48); }
+  input[type="text"] {
+    font-family: inherit; font-size: 1.3rem; letter-spacing: .28em; text-align: center;
+    width: 200px; padding: 11px; border-radius: 12px;
+    border: 1px solid var(--line); background: rgba(6,16,28,.4); color: #fff; outline: none;
+  }
+  .muted { color: var(--muted); font-size: .92rem; line-height: 1.45; }
+  .grid { display: grid; grid-template-columns: 1.35fr .85fr; gap: 14px; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  a { color: #93c5fd; }
+  .note { margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <div class="mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M6 8h12l-1 12H7L6 8z" stroke="white" stroke-width="1.8"/>
+          <path d="M9 8V6a3 3 0 0 1 6 0v2" stroke="white" stroke-width="1.8"/>
+        </svg>
+      </div>
+      SGMS
+    </div>
+    <div class="live">Auto scan</div>
+  </div>
+
+  <section id="setup" class="glass note hidden">
+    <b>Firebase setup needed</b>
+    <p class="muted" style="margin-top:6px">Paste your config into FIREBASE_CONFIG in this file. Enable Realtime Database and set the rules below. Open the page on HTTPS so the camera can start.</p>
+  </section>
+
+  <section id="home" class="glass">
+    <h1>Smart Garbage<br>Management</h1>
+    <p class="sub">Two options only. Camera scans the bin. View shows the live picture and fill percent automatically.</p>
+    <div class="modes">
+      <button class="mode" id="goCam">
+        <div class="ico">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="6" width="18" height="13" rx="3" stroke="#dbeafe" stroke-width="1.7"/>
+            <circle cx="12" cy="12.5" r="3.2" stroke="#dbeafe" stroke-width="1.7"/>
+          </svg>
+        </div>
+        <b>Camera</b>
+        <span>Start scan and get a 6-digit code</span>
+      </button>
+      <button class="mode" id="goView">
+        <div class="ico">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="4" width="18" height="12" rx="2" stroke="#dbeafe" stroke-width="1.7"/>
+            <path d="M8 20h8M12 16v4" stroke="#dbeafe" stroke-width="1.7"/>
+          </svg>
+        </div>
+        <b>View</b>
+        <span>Enter the code and watch live</span>
+      </button>
+    </div>
+  </section>
+
+  <section id="camPage" class="hidden">
+    <div class="glass" style="margin-bottom:14px">
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <b>Camera</b>
+        <button class="btn ghost" id="back1">Back</button>
+      </div>
+      <video id="cam" autoplay playsinline muted></video>
+      <canvas id="snap" class="hidden"></canvas>
+      <div class="code" id="codeShow">------</div>
+      <p class="muted" id="camStatus" style="text-align:center;margin-bottom:12px">Allow camera, then start. Fill percent is automatic.</p>
+      <button class="btn" id="startCam">Start camera</button>
+    </div>
+    <div class="glass">
+      <div class="pct" id="cPct">0%</div>
+      <div class="bar"><i id="cBar"></i></div>
+      <div class="status" id="cMsg"><span class="dot"></span> Almost empty</div>
+      <p class="muted" id="gpsText" style="margin-top:10px">GPS: waiting</p>
+    </div>
+  </section>
+
+  <section id="viewPage" class="hidden">
+    <div class="glass" style="margin-bottom:14px">
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <b>View</b>
+        <button class="btn ghost" id="back2">Back</button>
+      </div>
+      <div class="row">
+        <input id="codeIn" type="text" maxlength="6" inputmode="numeric" placeholder="000000" />
+        <button class="btn" id="joinBtn">Connect</button>
+      </div>
+      <p class="muted" id="viewStatus" style="margin-top:10px">Enter the 6-digit code from Camera.</p>
+    </div>
+    <div class="grid">
+      <div class="glass">
+        <img id="live" class="feed" alt="Live feed" />
+      </div>
+      <div class="glass">
+        <div class="pct" id="vPct">--%</div>
+        <div class="bar"><i id="vBar"></i></div>
+        <div class="status" id="vMsg"><span class="dot"></span> Waiting</div>
+        <p class="muted" id="vGps" style="margin:12px 0">Location: —</p>
+        <div class="row">
+          <button class="btn warn" id="pauseBtn">Pause</button>
+          <button class="btn danger" id="stopBtn">Stop</button>
+          <button class="btn ghost" id="torchBtn">Flashlight Off</button>
+          <button class="btn ghost" id="alarmStop">Stop alarm</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBQzNsBZBZ2t6TMWInQFoduzxLLzjwDe_A",
+  authDomain: "smart-garbage-52043.firebaseapp.com",
+  databaseURL: "https://smart-garbage-52043-default-rtdb.firebaseio.com",
+  projectId: "smart-garbage-52043",
+  storageBucket: "smart-garbage-52043.firebasestorage.app",
+  messagingSenderId: "140910128374",
+  appId: "1:140910128374:web:9773cd8386f1a3e55fd0d7",
+  measurementId: "G-N2BCKHB6DY"
+};
+
+const $ = (id) => document.getElementById(id);
+const home = $("home"), camPage = $("camPage"), viewPage = $("viewPage"), setup = $("setup");
+function show(el) {
+  [home, camPage, viewPage].forEach(x => x.classList.add("hidden"));
+  el.classList.remove("hidden");
+}
+$("goCam").onclick = () => show(camPage);
+$("goView").onclick = () => show(viewPage);
+$("back1").onclick = () => show(home);
+$("back2").onclick = () => { stopAlarm(); show(home); };
+
+const ready = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== "PASTE_HERE" && FIREBASE_CONFIG.databaseURL;
+if (!ready) setup.classList.remove("hidden");
+let db = null;
+if (ready) { firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); }
+
+function setStatus(el, pct) {
+  const dot = el.querySelector(".dot");
+  const label = pct <= 30 ? "Almost empty" : pct <= 70 ? "Half full" : "Full — empty the bin";
+  el.childNodes[1].textContent = " " + label;
+  dot.className = "dot" + (pct <= 30 ? "" : pct <= 70 ? " mid" : " full");
+}
+function paint(pct, pctEl, barEl, msgEl) {
+  pct = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
+  pctEl.textContent = pct + "%";
+  barEl.style.width = pct + "%";
+  setStatus(msgEl, pct);
+  return pct;
+}
+function guessFill(video) {
+  const c = $("snap");
+  c.width = 80; c.height = 60;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(video, 0, 0, 80, 60);
+  const px = ctx.getImageData(0, 0, 80, 60).data;
+  let dark = 0, total = 0;
+  for (let y = 12; y < 54; y++) {
+    for (let x = 12; x < 68; x++) {
+      const i = (y * 80 + x) * 4;
+      const bright = (px[i] + px[i + 1] + px[i + 2]) / 3;
+      total++;
+      if (bright < 120) dark++;
+    }
+  }
+  return Math.round((dark / Math.max(1, total)) * 100);
+}
+
+let stream = null, timer = null, room = "", gps = null, paused = false;
+async function setTorch(on) {
+  const track = stream && stream.getVideoTracks()[0];
+  if (!track) return;
+  try { await track.applyConstraints({ advanced: [{ torch: !!on }] }); }
+  catch (e) { $("camStatus").textContent = "Flashlight is not supported on this browser."; }
+}
+$("startCam").onclick = async () => {
+  if (!db) { $("camStatus").textContent = "Paste Firebase config first."; return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    $("cam").srcObject = stream;
+  } catch (e) {
+    $("camStatus").textContent = "Allow camera. Open this page on HTTPS.";
+    return;
+  }
+  room = String(Math.floor(100000 + Math.random() * 900000));
+  $("codeShow").textContent = room;
+  $("camStatus").textContent = "Scanning automatically. Code: " + room;
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition((pos) => {
+      gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      $("gpsText").textContent = "GPS: " + gps.lat.toFixed(5) + ", " + gps.lng.toFixed(5);
+    }, () => { $("gpsText").textContent = "GPS permission denied."; }, { enableHighAccuracy: true });
+  }
+  const ref = db.ref("rooms/" + room);
+  await ref.set({ created: Date.now(), percent: 0, live: true });
+  ref.child("cmd").on("value", (snap) => {
+    const cmd = snap.val(); if (!cmd) return;
+    if (cmd.type === "torch") setTorch(!!cmd.on);
+    if (cmd.type === "pause") { paused = !!cmd.on; $("camStatus").textContent = paused ? "Paused" : "Scanning " + room; }
+    if (cmd.type === "stop") stopCamera();
+  });
+  clearInterval(timer);
+  timer = setInterval(() => {
+    if (paused || !$("cam").videoWidth) return;
+    const pct = guessFill($("cam"));
+    paint(pct, $("cPct"), $("cBar"), $("cMsg"));
+    const c = $("snap");
+    c.width = 240; c.height = 180;
+    c.getContext("2d").drawImage($("cam"), 0, 0, 240, 180);
+    ref.update({
+      frame: c.toDataURL("image/jpeg", 0.45),
+      percent: pct,
+      gps: gps || null,
+      full: pct >= 75,
+      t: Date.now(),
+      live: true
+    });
+  }, 1200);
+};
+function stopCamera() {
+  clearInterval(timer);
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null;
+  if (db && room) db.ref("rooms/" + room).update({ live: false, frame: null });
+  $("camStatus").textContent = "Stopped.";
+}
+
+let viewRef = null, alarmOn = false, audioCtx = null, alarmTimer = null;
+function startAlarm() {
+  if (alarmOn) return;
+  alarmOn = true;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    alarmTimer = setInterval(() => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "square"; o.frequency.value = 880; g.gain.value = 0.07;
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + 0.16);
+    }, 480);
+  } catch (e) {}
+}
+function stopAlarm() { alarmOn = false; if (alarmTimer) clearInterval(alarmTimer); alarmTimer = null; }
+$("alarmStop").onclick = stopAlarm;
+$("pauseBtn").onclick = () => {
+  if (!viewRef) return;
+  const on = $("pauseBtn").textContent === "Pause";
+  viewRef.child("cmd").set({ type: "pause", on, t: Date.now() });
+  $("pauseBtn").textContent = on ? "Resume" : "Pause";
+};
+$("stopBtn").onclick = () => {
+  if (!viewRef) return;
+  viewRef.child("cmd").set({ type: "stop", t: Date.now() });
+  stopAlarm();
+  $("viewStatus").textContent = "Stopped.";
+};
+$("torchBtn").onclick = () => {
+  if (!viewRef) return;
+  const on = $("torchBtn").textContent.indexOf("Off") !== -1;
+  viewRef.child("cmd").set({ type: "torch", on, t: Date.now() });
+  $("torchBtn").textContent = on ? "Flashlight On" : "Flashlight Off";
+};
+$("joinBtn").onclick = () => {
+  if (!db) { $("viewStatus").textContent = "Paste Firebase config first."; return; }
+  const code = ($("codeIn").value || "").replace(/\D/g, "");
+  if (code.length !== 6) { $("viewStatus").textContent = "Enter a 6-digit code."; return; }
+  if (viewRef) viewRef.off();
+  viewRef = db.ref("rooms/" + code);
+  $("viewStatus").textContent = "Connecting to " + code + "...";
+  viewRef.on("value", (snap) => {
+    const d = snap.val();
+    if (!d) { $("viewStatus").textContent = "Wrong code, or camera has not started."; return; }
+    $("viewStatus").textContent = d.live === false ? "Camera stopped." : "Live · auto scan · " + code;
+    if (d.frame) $("live").src = d.frame;
+    const pct = paint(d.percent || 0, $("vPct"), $("vBar"), $("vMsg"));
+    if (d.gps && d.gps.lat) {
+      const url = "https://maps.google.com/?q=" + d.gps.lat + "," + d.gps.lng;
+      $("vGps").innerHTML = "Location: " + d.gps.lat.toFixed(5) + ", " + d.gps.lng.toFixed(5) + ' · <a href="' + url + '" target="_blank">Open map</a>';
+    }
+    if (pct >= 75) startAlarm();
+    else if (pct < 70) stopAlarm();
+  });
+};
+if (/Mobi|Android/i.test(navigator.userAgent)) show(camPage);
+</script>
+</body>
+</html>
